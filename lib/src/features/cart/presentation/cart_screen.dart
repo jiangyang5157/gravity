@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:gravity/src/core/theme/app_colors.dart';
 import 'cart_provider.dart';
@@ -17,6 +18,28 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Shopping Cart'),
         actions: [
+          if (cartItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                final buffer = StringBuffer();
+                for (final item in cartItems) {
+                  buffer.writeln(
+                    '${item.product.title} (ID: #${item.product.id}) - \$${item.product.price.toStringAsFixed(2)} x ${item.quantity}',
+                  );
+                }
+                buffer.writeln('Total: \$${total.toStringAsFixed(2)}');
+
+                await Clipboard.setData(ClipboardData(text: buffer.toString()));
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cart copied to clipboard')),
+                  );
+                }
+              },
+              tooltip: 'Copy Cart',
+            ),
           if (cartItems.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
@@ -50,28 +73,6 @@ class CartScreen extends ConsumerWidget {
               },
               tooltip: 'Clear Cart',
             ),
-          if (cartItems.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.copy),
-              onPressed: () async {
-                final buffer = StringBuffer();
-                for (final item in cartItems) {
-                  buffer.writeln(
-                    '${item.product.title} (ID: #${item.product.id}) - \$${item.product.price.toStringAsFixed(2)} x ${item.quantity}',
-                  );
-                }
-                buffer.writeln('Total: \$${total.toStringAsFixed(2)}');
-
-                await Clipboard.setData(ClipboardData(text: buffer.toString()));
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cart copied to clipboard')),
-                  );
-                }
-              },
-              tooltip: 'Copy Cart',
-            ),
         ],
       ),
       body: cartItems.isEmpty
@@ -103,68 +104,75 @@ class CartScreen extends ConsumerWidget {
                     separatorBuilder: (context, index) => const Divider(),
                     itemBuilder: (context, index) {
                       final item = cartItems[index];
-                      return ListTile(
-                        leading: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: NetworkImage(
-                                item.product.imageUrls.isNotEmpty
-                                    ? item.product.imageUrls.first
-                                    : '',
+                      return InkWell(
+                        onTap: () {
+                          context.push('/product/${item.product.id}');
+                        },
+                        child: ListTile(
+                          leading: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(
+                                image: NetworkImage(
+                                  item.product.imageUrls.isNotEmpty
+                                      ? item.product.imageUrls.first
+                                      : '',
+                                ),
+                                fit: BoxFit.cover,
                               ),
-                              fit: BoxFit.cover,
                             ),
                           ),
-                        ),
-                        title: Text(item.product.title),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ID: #${item.product.id}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: Colors.grey),
-                            ),
-                            Text(
-                              '\$${item.product.price.toStringAsFixed(2)}',
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline),
-                              onPressed: () {
-                                ref
-                                    .read(cartProvider.notifier)
-                                    .updateQuantity(
-                                      item.product,
-                                      item.quantity - 1,
-                                    );
-                              },
-                            ),
-                            Text(
-                              '${item.quantity}',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              onPressed: () {
-                                ref
-                                    .read(cartProvider.notifier)
-                                    .updateQuantity(
-                                      item.product,
-                                      item.quantity + 1,
-                                    );
-                              },
-                            ),
-                          ],
+                          title: Text(item.product.title),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ID: #${item.product.id}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: Colors.grey),
+                              ),
+                              Text(
+                                '\$${item.product.price.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                onPressed: () {
+                                  ref
+                                      .read(cartProvider.notifier)
+                                      .updateQuantity(
+                                        item.product,
+                                        item.quantity - 1,
+                                      );
+                                },
+                              ),
+                              Text(
+                                '${item.quantity}',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                onPressed: () {
+                                  ref
+                                      .read(cartProvider.notifier)
+                                      .updateQuantity(
+                                        item.product,
+                                        item.quantity + 1,
+                                      );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
