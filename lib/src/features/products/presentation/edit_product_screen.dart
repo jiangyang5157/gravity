@@ -19,8 +19,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
-  late TextEditingController _imageUrlController;
-  String _selectedCategory = 'Electronics';
+  late TextEditingController _imagesController;
+  late TextEditingController _tagsController;
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -30,7 +30,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
-    _imageUrlController = TextEditingController();
+    _imagesController = TextEditingController();
+    _tagsController = TextEditingController();
   }
 
   @override
@@ -38,7 +39,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _imageUrlController.dispose();
+    _imagesController.dispose();
+    _tagsController.dispose();
     super.dispose();
   }
 
@@ -47,8 +49,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     _titleController.text = product.title;
     _descriptionController.text = product.description;
     _priceController.text = product.price.toString();
-    _imageUrlController.text = product.imageUrl;
-    _selectedCategory = product.category;
+    _imagesController.text = product.imageUrls.join('\n');
+    _tagsController.text = product.tags.join(', ');
     _isInitialized = true;
   }
 
@@ -68,8 +70,18 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         title: _titleController.text,
         description: _descriptionController.text,
         price: double.parse(_priceController.text),
-        imageUrl: _imageUrlController.text,
-        category: _selectedCategory,
+        imageUrls: _imagesController.text
+            .split(RegExp(r'[\n,]')) // Split by newline or comma
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet() // Remove duplicates
+            .toList(),
+        tags: _tagsController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet() // Remove duplicates
+            .toList(),
       );
 
       await ref
@@ -144,18 +156,24 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                   ),
                   const Gap(16),
                   TextFormField(
-                    initialValue: _selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Category'),
+                    controller: _tagsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tags (comma separated)',
+                    ),
                     validator: (v) =>
-                        v?.isEmpty == true ? 'Please enter category' : null,
-                    onChanged: (v) => _selectedCategory = v,
+                        v?.isEmpty == true ? 'Please enter tags' : null,
                   ),
                   const Gap(16),
                   TextFormField(
-                    controller: _imageUrlController,
-                    decoration: const InputDecoration(labelText: 'Image URL'),
+                    controller: _imagesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Image URLs (one per line)',
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: null,
+                    minLines: 3,
                     validator: (v) =>
-                        v?.isEmpty == true ? 'Please enter image URL' : null,
+                        v?.isEmpty == true ? 'Please enter image URLs' : null,
                   ),
                   const Gap(32),
                   FilledButton(

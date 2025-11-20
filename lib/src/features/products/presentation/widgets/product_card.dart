@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gravity/src/core/theme/app_colors.dart';
 import 'package:gravity/src/features/products/domain/product.dart';
+import 'package:gravity/src/features/products/presentation/products_provider.dart';
 import 'package:gravity/src/features/cart/presentation/cart_provider.dart';
 import 'package:gravity/src/features/auth/presentation/auth_provider.dart';
 
@@ -20,11 +20,44 @@ class ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<ProductCard> {
+  int _currentImageIndex = 0;
   bool _isHovered = false;
+
+  void _nextImage() {
+    setState(() {
+      _currentImageIndex =
+          (_currentImageIndex + 1) % widget.product.imageUrls.length;
+    });
+  }
+
+  void _prevImage() {
+    setState(() {
+      _currentImageIndex =
+          (_currentImageIndex - 1 + widget.product.imageUrls.length) %
+          widget.product.imageUrls.length;
+    });
+  }
+
+  @override
+  void didUpdateWidget(ProductCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.product.imageUrls.length != oldWidget.product.imageUrls.length) {
+      if (_currentImageIndex >= widget.product.imageUrls.length) {
+        _currentImageIndex = 0;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasMultipleImages = widget.product.imageUrls.length > 1;
+
+    // Ensure index is valid (safety check)
+    if (_currentImageIndex >= widget.product.imageUrls.length &&
+        widget.product.imageUrls.isNotEmpty) {
+      _currentImageIndex = 0;
+    }
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -55,40 +88,99 @@ class _ProductCardState extends State<ProductCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image Section
               Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Hero(
-                    tag: 'product_${widget.product.id}',
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _buildImage(widget.product.imageUrl),
-                        // Gradient Overlay
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withOpacity(0.05),
-                                ],
-                              ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Hero(
+                      tag: 'product-${widget.product.id}',
+                      child: Image.network(
+                        widget.product.imageUrls.isNotEmpty
+                            ? widget.product.imageUrls[_currentImageIndex]
+                            : '',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (hasMultipleImages && _isHovered) ...[
+                      Positioned(
+                        left: 4,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: IconButton.filledTonal(
+                            onPressed: () {
+                              // Prevent card tap
+                              _prevImage();
+                            },
+                            icon: const Icon(Icons.chevron_left),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 4,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: IconButton.filledTonal(
+                            onPressed: _nextImage,
+                            icon: const Icon(Icons.chevron_right),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (hasMultipleImages)
+                      Positioned(
+                        bottom: 8,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: widget.product.imageUrls
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _currentImageIndex = entry.key;
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 6,
+                                        height: 6,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _currentImageIndex == entry.key
+                                              ? Colors.white
+                                              : Colors.white.withOpacity(0.5),
+                                        ),
+                                      ),
+                                    );
+                                  })
+                                  .toList(),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
               ),
-
-              // Content Section
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -121,7 +213,57 @@ class _ProductCardState extends State<ProductCard> {
                             final isAdmin =
                                 ref.watch(authControllerProvider)?.isAdmin ??
                                 false;
-                            if (isAdmin) return const SizedBox.shrink();
+
+                            if (isAdmin) {
+                              return IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Product'),
+                                      content: const Text(
+                                        'Are you sure you want to delete this product?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text(
+                                            'Delete',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirm == true) {
+                                    await ref
+                                        .read(productRepositoryProvider.future)
+                                        .then(
+                                          (repo) => repo.deleteProduct(
+                                            widget.product.id!,
+                                          ),
+                                        );
+                                    // Refresh handled by provider invalidation usually,
+                                    // but here we might need to trigger a refresh if the list doesn't auto-update.
+                                    // Assuming the list provider watches the repo or we invalidate it.
+                                    ref.invalidate(productsProvider);
+                                  }
+                                },
+                                tooltip: 'Delete Product',
+                              );
+                            }
 
                             return IconButton(
                               icon: const Icon(
@@ -155,26 +297,5 @@ class _ProductCardState extends State<ProductCard> {
         ),
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  Widget _buildImage(String path) {
-    if (path.startsWith('http') || path.startsWith('https')) {
-      return Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image)),
-      );
-    } else if (kIsWeb) {
-      // Web doesn't support File(path)
-      return const Center(child: Icon(Icons.image_not_supported));
-    } else {
-      return Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image)),
-      );
-    }
   }
 }

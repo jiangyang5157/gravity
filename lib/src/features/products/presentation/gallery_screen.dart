@@ -8,24 +8,32 @@ import 'package:gravity/src/features/cart/presentation/cart_provider.dart';
 import 'products_provider.dart';
 import 'widgets/product_card.dart';
 
-class GalleryScreen extends ConsumerWidget {
+class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends ConsumerState<GalleryScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
-            title: Text(
-              'Gravity.',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.0,
-              ),
-            ),
+          SliverAppBar(
+            title: const Text('Product Gallery'),
             actions: [
               if (ref.watch(authControllerProvider)?.isAdmin == true)
                 IconButton(
@@ -61,49 +69,79 @@ class GalleryScreen extends ConsumerWidget {
             ],
             floating: true,
             pinned: true,
-            expandedHeight: 120,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, ID, or tags...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                ),
+              ),
+            ),
           ),
 
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: productsAsync.when(
-              data: (products) {
-                if (products.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.inventory_2_outlined,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          const Gap(16),
-                          Text(
-                            'No products found',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const Gap(16),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              // Quick hack to seed data for the user
-                              // In real app, use a proper service
-                              // We need to access the repository's isar instance.
-                              // Let's make the repository expose it or add a seed method.
-                              // For now, let's just rely on the user adding products manually or restart app (if we added auto-seed in main).
-                              // Wait, I didn't add auto-seed in main. Let's add a button here that works.
-                              // I'll update the repository to expose Isar or add a seed method.
-                            },
-                            child: const Text('Seed Mock Data'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+          productsAsync.when(
+            data: (products) {
+              var filteredProducts = products;
+              if (_searchQuery.isNotEmpty) {
+                final query = _searchQuery.toLowerCase();
+                final searchTags = query
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
 
-                return SliverGrid(
+                filteredProducts = products.where((product) {
+                  final titleMatch = product.title.toLowerCase().contains(
+                    query,
+                  );
+                  final idMatch = product.id.toString().contains(query);
+                  final tagsMatch =
+                      searchTags.isNotEmpty &&
+                      searchTags.any(
+                        (tag) => product.tags.any(
+                          (pTag) => pTag.toLowerCase().contains(tag),
+                        ),
+                      );
+                  return titleMatch || idMatch || tagsMatch;
+                }).toList();
+              }
+
+              // Sort by lastModifiedDate descending
+              filteredProducts.sort(
+                (a, b) => b.lastModifiedDate.compareTo(a.lastModifiedDate),
+              );
+
+              if (filteredProducts.isEmpty) {
+                return const SliverFillRemaining(
+                  child: Center(child: Text('No products found')),
+                );
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 300,
                     mainAxisSpacing: 16,
@@ -111,21 +149,20 @@ class GalleryScreen extends ConsumerWidget {
                     childAspectRatio: 0.75,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    final product = products[index];
+                    final product = filteredProducts[index];
                     return ProductCard(product: product)
                         .animate()
                         .fadeIn(delay: (index * 50).ms)
                         .slideY(begin: 0.1, end: 0);
-                  }, childCount: products.length),
-                );
-              },
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (err, stack) => SliverFillRemaining(
-                child: Center(child: Text('Error: $err')),
-              ),
+                  }, childCount: filteredProducts.length),
+                ),
+              );
+            },
+            loading: () => const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
             ),
+            error: (err, stack) =>
+                SliverFillRemaining(child: Center(child: Text('Error: $err'))),
           ),
         ],
       ),

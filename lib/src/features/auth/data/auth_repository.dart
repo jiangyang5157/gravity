@@ -11,7 +11,7 @@ class MockAuthRepository implements AuthRepository {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (username == 'admin' && password == '1') {
+    if (username == 'admin' && (password == '1' || password.isEmpty)) {
       return const User(id: '1', username: 'Admin User', role: UserRole.admin);
     }
 

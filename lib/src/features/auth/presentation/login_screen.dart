@@ -15,7 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController(text: 'admin');
-  final _passwordController = TextEditingController(text: '1');
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -116,6 +116,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   obscureText: true,
                   validator: (value) {
+                    if (_usernameController.text == 'admin') {
+                      return null;
+                    }
                     if (value == null || value.isEmpty) {
                       return 'Please enter password';
                     }
@@ -137,8 +140,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text('Login'),
                 ),
                 const Gap(16),
+                OutlinedButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          ref
+                              .read(authControllerProvider.notifier)
+                              .loginAsGuest();
+                          context.go('/');
+                        },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Continue as Guest'),
+                ),
+                const Gap(16),
                 const Text(
-                  'Hint: admin/1 or user/1',
+                  'Hint: admin (no password)',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey),
                 ),

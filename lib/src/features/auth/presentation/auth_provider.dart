@@ -26,6 +26,10 @@ class AuthController extends _$AuthController {
     return false;
   }
 
+  void loginAsGuest() {
+    state = const User(id: 'guest', username: 'Guest', role: UserRole.customer);
+  }
+
   Future<void> logout() async {
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();

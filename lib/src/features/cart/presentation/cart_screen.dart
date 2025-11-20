@@ -13,7 +13,44 @@ class CartScreen extends ConsumerWidget {
     final total = ref.watch(cartTotalProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shopping Cart')),
+      appBar: AppBar(
+        title: const Text('Shopping Cart'),
+        actions: [
+          if (cartItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Clear Cart'),
+                    content: const Text(
+                      'Are you sure you want to remove all items?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Clear',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  ref.read(cartProvider.notifier).clearCart();
+                }
+              },
+              tooltip: 'Clear Cart',
+            ),
+        ],
+      ),
       body: cartItems.isEmpty
           ? Center(
               child: Column(
@@ -51,15 +88,29 @@ class CartScreen extends ConsumerWidget {
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(8),
                             image: DecorationImage(
-                              image: NetworkImage(item.product.imageUrl),
+                              image: NetworkImage(
+                                item.product.imageUrls.isNotEmpty
+                                    ? item.product.imageUrls.first
+                                    : '',
+                              ),
                               fit: BoxFit.cover,
                             ),
                           ),
                         ),
                         title: Text(item.product.title),
-                        subtitle: Text(
-                          '\$${item.product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(color: AppColors.primary),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '\$${item.product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(color: AppColors.primary),
+                            ),
+                            Text(
+                              'ID: #${item.product.id}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: Colors.grey),
+                            ),
+                          ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

@@ -17,28 +17,40 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
-  final _imageController = TextEditingController();
-  final _categoryController = TextEditingController();
+  final _imagesController = TextEditingController();
+  final _tagsController = TextEditingController();
 
   @override
   void dispose() {
     _titleController.dispose();
     _descController.dispose();
     _priceController.dispose();
-    _imageController.dispose();
-    _categoryController.dispose();
+    _imagesController.dispose();
+    _tagsController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
+      final now = DateTime.now();
       final product = Product(
         title: _titleController.text,
         description: _descController.text,
         price: double.parse(_priceController.text),
-        imageUrl: _imageController.text,
-        category: _categoryController.text,
-        createdAt: DateTime.now(),
+        imageUrls: _imagesController.text
+            .split(RegExp(r'[\n,]')) // Split by newline or comma
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet() // Remove duplicates
+            .toList(),
+        tags: _tagsController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet() // Remove duplicates
+            .toList(),
+        createdAt: now,
+        lastModifiedDate: now,
       );
 
       final repo = await ref.read(productRepositoryProvider.future);
@@ -71,49 +83,47 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               ),
               const Gap(16),
               TextFormField(
+                controller: _tagsController,
+                decoration: const InputDecoration(
+                  labelText: 'Tags (comma separated)',
+                ),
+                validator: (v) => v?.isEmpty == true ? 'Required' : null,
+              ),
+              const Gap(16),
+              TextFormField(
                 controller: _descController,
                 decoration: const InputDecoration(labelText: 'Description'),
                 maxLines: 3,
                 validator: (v) => v?.isEmpty == true ? 'Required' : null,
               ),
               const Gap(16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Price'),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Please enter price';
-                        }
-                        if (double.tryParse(v) == null) {
-                          return 'Invalid number';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const Gap(16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _categoryController,
-                      decoration: const InputDecoration(labelText: 'Category'),
-                      validator: (v) => v?.isEmpty == true ? 'Required' : null,
-                    ),
-                  ),
-                ],
+              TextFormField(
+                controller: _priceController,
+                decoration: const InputDecoration(labelText: 'Price'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.isEmpty) {
+                    return 'Please enter price';
+                  }
+                  if (double.tryParse(v) == null) {
+                    return 'Invalid number';
+                  }
+                  return null;
+                },
               ),
               const Gap(16),
               TextFormField(
-                controller: _imageController,
+                controller: _imagesController,
                 decoration: const InputDecoration(
-                  labelText: 'Image URL or Path',
-                  hintText: 'https://... or /path/to/image.jpg',
+                  labelText: 'Image URLs (one per line)',
+                  alignLabelWithHint: true,
                 ),
+                maxLines: null,
+                minLines: 3,
                 validator: (v) => v?.isEmpty == true ? 'Required' : null,
               ),
+              const Gap(16),
+
               const Gap(32),
               FilledButton(
                 onPressed: _submit,

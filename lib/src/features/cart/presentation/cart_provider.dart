@@ -29,15 +29,18 @@ class Cart extends _$Cart {
 
   void updateQuantity(Product product, int quantity) {
     if (quantity <= 0) {
-      removeFromCart(product);
-      return;
-    }
-
-    final index = state.indexWhere((item) => item.product.id == product.id);
-    if (index != -1) {
-      final newState = [...state];
-      newState[index] = state[index].copyWith(quantity: quantity);
-      state = newState;
+      state = [
+        for (final item in state)
+          if (item.product.id != product.id) item,
+      ];
+    } else {
+      state = [
+        for (final item in state)
+          if (item.product.id == product.id)
+            CartItem(product: product, quantity: quantity)
+          else
+            item,
+      ];
     }
   }
 
