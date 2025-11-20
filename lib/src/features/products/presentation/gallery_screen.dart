@@ -25,6 +25,22 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     super.dispose();
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    String timeGreeting;
+    if (hour < 12) {
+      timeGreeting = 'Good morning';
+    } else if (hour < 18) {
+      timeGreeting = 'Good afternoon';
+    } else {
+      timeGreeting = 'Good evening';
+    }
+
+    final user = ref.watch(authControllerProvider);
+    final name = user?.username ?? 'Guest';
+    return '$timeGreeting $name';
+  }
+
   @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
@@ -33,7 +49,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            title: const Text('Product Gallery'),
+            title: Text(_getGreeting()),
             actions: [
               if (ref.watch(authControllerProvider)?.isAdmin == true)
                 IconButton(

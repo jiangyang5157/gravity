@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:gravity/src/core/theme/app_colors.dart';
@@ -48,6 +49,28 @@ class CartScreen extends ConsumerWidget {
                 }
               },
               tooltip: 'Clear Cart',
+            ),
+          if (cartItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                final buffer = StringBuffer();
+                for (final item in cartItems) {
+                  buffer.writeln(
+                    '${item.product.title} (ID: #${item.product.id}) - \$${item.product.price.toStringAsFixed(2)} x ${item.quantity}',
+                  );
+                }
+                buffer.writeln('Total: \$${total.toStringAsFixed(2)}');
+
+                await Clipboard.setData(ClipboardData(text: buffer.toString()));
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cart copied to clipboard')),
+                  );
+                }
+              },
+              tooltip: 'Copy Cart',
             ),
         ],
       ),
@@ -102,13 +125,13 @@ class CartScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '\$${item.product.price.toStringAsFixed(2)}',
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
-                            Text(
                               'ID: #${item.product.id}',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: Colors.grey),
+                            ),
+                            Text(
+                              '\$${item.product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(color: AppColors.primary),
                             ),
                           ],
                         ),
