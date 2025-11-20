@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
+import 'package:gravity/src/features/auth/presentation/auth_provider.dart';
+import 'package:gravity/src/features/cart/presentation/cart_provider.dart';
 import 'products_provider.dart';
 import 'widgets/product_card.dart';
 
@@ -25,12 +27,37 @@ class GalleryScreen extends ConsumerWidget {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded),
-                onPressed: () => context.go('/add'),
-                tooltip: 'Add Product',
+              if (ref.watch(authControllerProvider)?.isAdmin == true)
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  onPressed: () => context.go('/add'),
+                  tooltip: 'Add Product',
+                ),
+              Consumer(
+                builder: (context, ref, child) {
+                  final cartCount = ref.watch(cartItemCountProvider);
+                  final isAdmin =
+                      ref.watch(authControllerProvider)?.isAdmin ?? false;
+
+                  if (isAdmin) return const SizedBox.shrink();
+
+                  return IconButton(
+                    icon: Badge(
+                      label: Text('$cartCount'),
+                      isLabelVisible: cartCount > 0,
+                      child: const Icon(Icons.shopping_cart),
+                    ),
+                    onPressed: () => context.push('/cart'),
+                  );
+                },
               ),
-              const Gap(16),
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () =>
+                    ref.read(authControllerProvider.notifier).logout(),
+                tooltip: 'Logout',
+              ),
+              const Gap(8),
             ],
             floating: true,
             pinned: true,
@@ -86,9 +113,9 @@ class GalleryScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final product = products[index];
                     return ProductCard(product: product)
-                        .animate(delay: (index * 50).ms)
-                        .fadeIn()
-                        .slideY(begin: 0.2, end: 0);
+                        .animate()
+                        .fadeIn(delay: (index * 50).ms)
+                        .slideY(begin: 0.1, end: 0);
                   }, childCount: products.length),
                 );
               },

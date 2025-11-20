@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gravity/src/core/theme/app_colors.dart';
 import 'package:gravity/src/features/products/domain/product.dart';
+import 'package:gravity/src/features/cart/presentation/cart_provider.dart';
+import 'package:gravity/src/features/auth/presentation/auth_provider.dart';
 
 class ProductCard extends StatefulWidget {
   final Product product;
@@ -22,7 +25,7 @@ class _ProductCardState extends State<ProductCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -31,7 +34,8 @@ class _ProductCardState extends State<ProductCard> {
         child: AnimatedContainer(
           duration: 200.ms,
           curve: Curves.easeOut,
-          transform: Matrix4.identity()..translate(0.0, _isHovered ? -8.0 : 0.0),
+          transform: Matrix4.identity()
+            ..translate(0.0, _isHovered ? -8.0 : 0.0),
           decoration: BoxDecoration(
             color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(16),
@@ -43,7 +47,7 @@ class _ProductCardState extends State<ProductCard> {
               ),
             ],
             border: Border.all(
-              color: isDark 
+              color: isDark
                   ? Colors.white.withOpacity(_isHovered ? 0.2 : 0.05)
                   : Colors.black.withOpacity(_isHovered ? 0.1 : 0.05),
             ),
@@ -54,7 +58,9 @@ class _ProductCardState extends State<ProductCard> {
               // Image Section
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   child: Hero(
                     tag: 'product_${widget.product.id}',
                     child: Stack(
@@ -81,22 +87,13 @@ class _ProductCardState extends State<ProductCard> {
                   ),
                 ),
               ),
-              
+
               // Content Section
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.product.category.toUpperCase(),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const Gap(4),
                     Text(
                       widget.product.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -105,31 +102,49 @@ class _ProductCardState extends State<ProductCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const Gap(8),
+                    const Gap(4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           '\$${widget.product.price.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: isDark ? AppColors.secondaryLight : AppColors.secondaryDark,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: isDark
+                                    ? AppColors.secondaryLight
+                                    : AppColors.secondaryDark,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 16,
-                            color: AppColors.primary,
-                          ),
-                        ).animate(target: _isHovered ? 1 : 0)
-                        .scale(begin: const Offset(0.8, 0.8), end: const Offset(1.0, 1.0))
-                        .fadeIn(),
+                        Consumer(
+                          builder: (context, ref, child) {
+                            final isAdmin =
+                                ref.watch(authControllerProvider)?.isAdmin ??
+                                false;
+                            if (isAdmin) return const SizedBox.shrink();
+
+                            return IconButton(
+                              icon: const Icon(
+                                Icons.add_shopping_cart,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                ref
+                                    .read(cartProvider.notifier)
+                                    .addToCart(widget.product);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${widget.product.title} added to cart',
+                                    ),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                              tooltip: 'Add to Cart',
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -147,16 +162,18 @@ class _ProductCardState extends State<ProductCard> {
       return Image.network(
         path,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image)),
       );
     } else if (kIsWeb) {
-       // Web doesn't support File(path)
-       return const Center(child: Icon(Icons.image_not_supported));
+      // Web doesn't support File(path)
+      return const Center(child: Icon(Icons.image_not_supported));
     } else {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image)),
       );
     }
   }

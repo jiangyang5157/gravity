@@ -85,9 +85,12 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       decoration: const InputDecoration(labelText: 'Price'),
                       keyboardType: TextInputType.number,
                       validator: (v) {
-                        if (v?.isEmpty == true) return 'Required';
-                        if (double.tryParse(v!) == null)
+                        if (v == null || v.isEmpty) {
+                          return 'Please enter price';
+                        }
+                        if (double.tryParse(v) == null) {
                           return 'Invalid number';
+                        }
                         return null;
                       },
                     ),

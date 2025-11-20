@@ -87,6 +87,15 @@ class InMemoryProductRepository implements ProductRepository {
   }
 
   @override
+  Future<void> updateProduct(Product product) async {
+    final index = _products.indexWhere((p) => p.id == product.id);
+    if (index != -1) {
+      _products[index] = product;
+      _productsSubject.add(_products);
+    }
+  }
+
+  @override
   Future<void> deleteProduct(int id) async {
     _products.removeWhere((p) => p.id == id);
     _productsSubject.add(_products);
