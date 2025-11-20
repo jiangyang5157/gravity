@@ -105,27 +105,27 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             data: (products) {
               var filteredProducts = products;
               if (_searchQuery.isNotEmpty) {
-                final query = _searchQuery.toLowerCase();
-                final searchTags = query
+                final searchTerms = _searchQuery
+                    .toLowerCase()
                     .split(',')
                     .map((e) => e.trim())
                     .where((e) => e.isNotEmpty)
                     .toList();
 
-                filteredProducts = products.where((product) {
-                  final titleMatch = product.title.toLowerCase().contains(
-                    query,
-                  );
-                  final idMatch = product.id.toString().contains(query);
-                  final tagsMatch =
-                      searchTags.isNotEmpty &&
-                      searchTags.any(
-                        (tag) => product.tags.any(
-                          (pTag) => pTag.toLowerCase().contains(tag),
-                        ),
+                if (searchTerms.isNotEmpty) {
+                  filteredProducts = products.where((product) {
+                    return searchTerms.any((term) {
+                      final titleMatch = product.title.toLowerCase().contains(
+                        term,
                       );
-                  return titleMatch || idMatch || tagsMatch;
-                }).toList();
+                      final idMatch = product.id.toString().contains(term);
+                      final tagsMatch = product.tags.any(
+                        (tag) => tag.toLowerCase().contains(term),
+                      );
+                      return titleMatch || idMatch || tagsMatch;
+                    });
+                  }).toList();
+                }
               }
 
               // Sort by lastModifiedDate descending
